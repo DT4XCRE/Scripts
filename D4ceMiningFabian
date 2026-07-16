@@ -1,0 +1,210 @@
+local player = game.Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local collectRemote = ReplicatedStorage.Net.RequestCollectDockOre
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "D4ceMiningFabian"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 380, 0, 480)
+frame.Position = UDim2.new(0.5, -190, 0.5, -240)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 60)
+title.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+title.Text = "D4ceMiningFabian"
+title.TextColor3 = Color3.new(1,1,1)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.Parent = frame
+
+-- Collect Docks
+local collectBtn = Instance.new("TextButton")
+collectBtn.Size = UDim2.new(0.85, 0, 0, 45)
+collectBtn.Position = UDim2.new(0.075, 0, 0.16, 0)
+collectBtn.BackgroundColor3 = Color3.fromRGB(0, 190, 90)
+collectBtn.Text = "Collect All Docks (1-40)"
+collectBtn.TextColor3 = Color3.new(0,0,0)
+collectBtn.TextScaled = true
+collectBtn.Font = Enum.Font.GothamSemibold
+collectBtn.Parent = frame
+
+-- Sell Shop TP
+local sellTpBtn = Instance.new("TextButton")
+sellTpBtn.Size = UDim2.new(0.85, 0, 0, 45)
+sellTpBtn.Position = UDim2.new(0.075, 0, 0.28, 0)
+sellTpBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 30)
+sellTpBtn.Text = "Teleport to Sell Shop"
+sellTpBtn.TextColor3 = Color3.new(0,0,0)
+sellTpBtn.TextScaled = true
+sellTpBtn.Font = Enum.Font.GothamSemibold
+sellTpBtn.Parent = frame
+
+-- Jellyfish Toggle
+local jellyToggle = Instance.new("TextButton")
+jellyToggle.Size = UDim2.new(0.85, 0, 0, 45)
+jellyToggle.Position = UDim2.new(0.075, 0, 0.41, 0)
+jellyToggle.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+jellyToggle.Text = "Gulp"
+jellyToggle.TextColor3 = Color3.new(1,1,1)
+jellyToggle.TextScaled = true
+jellyToggle.Font = Enum.Font.GothamSemibold
+jellyToggle.Parent = frame
+
+-- UFO Toggle
+local ufoToggle = Instance.new("TextButton")
+ufoToggle.Size = UDim2.new(0.85, 0, 0, 45)
+ufoToggle.Position = UDim2.new(0.075, 0, 0.54, 0)
+ufoToggle.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+ufoToggle.Text = "Gulp"
+ufoToggle.TextColor3 = Color3.new(1,1,1)
+ufoToggle.TextScaled = true
+ufoToggle.Font = Enum.Font.GothamSemibold
+ufoToggle.Parent = frame
+
+local unloadBtn = Instance.new("TextButton")
+unloadBtn.Size = UDim2.new(0.4, 0, 0, 35)
+unloadBtn.Position = UDim2.new(0.55, 0, 1, -45)
+unloadBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+unloadBtn.Text = "Unload"
+unloadBtn.TextColor3 = Color3.new(1,1,1)
+unloadBtn.TextScaled = true
+unloadBtn.Font = Enum.Font.Gotham
+unloadBtn.Parent = frame
+
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, 0, 0, 30)
+status.Position = UDim2.new(0, 0, 1, -80)
+status.BackgroundTransparency = 1
+status.Text = "Ready"
+status.TextColor3 = Color3.fromRGB(200, 200, 200)
+status.TextScaled = true
+status.Font = Enum.Font.Gotham
+status.Parent = frame
+
+frame.Active = true
+frame.Draggable = true
+
+local jellyEnabled = false
+local ufoEnabled = false
+local jellyConn = nil
+local ufoConn = nil
+
+local function teleportToSell()
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local p = workspace:FindFirstChild("FarmStar", true)
+    if p then p = p:FindFirstChild("Platforms", true) end
+    if p then p = p:FindFirstChild("302132620") end
+    if p then p = p:FindFirstChild("Shops", true) end
+    if p then p = p:FindFirstChild("Shop", true) end
+    if p then 
+        local target = p:FindFirstChild("SellShop") or p:FindFirstChild("FS_SellPromptAnchor")
+        if target then
+            local part = target:FindFirstChildWhichIsA("BasePart") or target
+            root.CFrame = part.CFrame * CFrame.new(8, 6, 0)
+        end
+    end
+end
+
+local function collectAllDocks()
+    for i = 1, 40 do
+        pcall(function()
+            collectRemote:FireServer({ dockIndex = i })
+        end)
+        task.wait(0.08)
+    end
+end
+
+local function teleportToJellyfish()
+    local folder = workspace:FindFirstChild("FarmStar", true)
+    if folder then folder = folder:FindFirstChild("ActiveEvent", true) end
+    if folder then folder = folder:FindFirstChild("Incidents", true) end
+    if folder then folder = folder:FindFirstChild("JellyFish") end
+    if not folder then return end
+
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    for _, obj in ipairs(folder:GetChildren()) do
+        local part = obj:FindFirstChild("Center") or obj:FindFirstChildWhichIsA("BasePart") or obj
+        if part then
+            root.CFrame = part.CFrame + Vector3.new(0, 8, 0)
+            task.wait(0.5)
+        end
+    end
+end
+
+local function teleportToUFO()
+    local folder = workspace:FindFirstChild("FarmStar", true)
+    if folder then folder = folder:FindFirstChild("ActiveEvent", true) end
+    if folder then folder = folder:FindFirstChild("Incidents", true) end
+    if folder then folder = folder:FindFirstChild("UFO") end
+    if not folder then return end
+
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    for _, obj in ipairs(folder:GetChildren()) do
+        local part = obj:FindFirstChildWhichIsA("BasePart") or obj
+        if part then
+            root.CFrame = part.CFrame + Vector3.new(0, 10, 0)
+            task.wait(0.6)
+        end
+    end
+end
+
+-- Button Functions
+collectBtn.MouseButton1Click:Connect(function()
+    status.Text = "Collecting"
+    collectAllDocks()
+    status.Text = "Done"
+    task.wait(1.5)
+    status.Text = "Ready"
+end)
+
+sellTpBtn.MouseButton1Click:Connect(function()
+    status.Text = "Teleporting to Sell"
+    teleportToSell()
+    task.wait(1)
+    status.Text = "Ready"
+end)
+
+jellyToggle.MouseButton1Click:Connect(function()
+    jellyEnabled = not jellyEnabled
+    if jellyEnabled then
+        jellyToggle.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
+        jellyToggle.Text = "GULP"
+        jellyConn = RunService.Heartbeat:Connect(teleportToJellyfish)
+    else
+        jellyToggle.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+        jellyToggle.Text = "Gulp"
+        if jellyConn then jellyConn:Disconnect() jellyConn = nil end
+    end
+end)
+
+ufoToggle.MouseButton1Click:Connect(function()
+    ufoEnabled = not ufoEnabled
+    if ufoEnabled then
+        ufoToggle.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
+        ufoToggle.Text = "GULP"
+        ufoConn = RunService.Heartbeat:Connect(teleportToUFO)
+    else
+        ufoToggle.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+        ufoToggle.Text = "Gulp"
+        if ufoConn then ufoConn:Disconnect() ufoConn = nil end
+    end
+end)
+
+unloadBtn.MouseButton1Click:Connect(function()
+    if jellyConn then jellyConn:Disconnect() end
+    if ufoConn then ufoConn:Disconnect() end
+    screenGui:Destroy()
+end)
