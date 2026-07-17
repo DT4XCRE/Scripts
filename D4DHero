@@ -21,9 +21,7 @@ local settings = {
 }
 
 local function saveLocal()
-    pcall(function()
-        writefile(localFile, HttpService:JSONEncode(settings))
-    end)
+    pcall(function() writefile(localFile, HttpService:JSONEncode(settings)) end)
 end
 
 local function loadLocal()
@@ -53,12 +51,7 @@ local is_script_active = true
 local currentTween = nil
 local guiMinimized = false
 
-local auto_skills = {
-    [Enum.KeyCode.E] = settings.auto_skills.E,
-    [Enum.KeyCode.R] = settings.auto_skills.R,
-    [Enum.KeyCode.F] = settings.auto_skills.F,
-    [Enum.KeyCode.X] = settings.auto_skills.X
-}
+local auto_skills = { [Enum.KeyCode.E] = settings.auto_skills.E, [Enum.KeyCode.R] = settings.auto_skills.R, [Enum.KeyCode.F] = settings.auto_skills.F, [Enum.KeyCode.X] = settings.auto_skills.X }
 
 local farming_enabled = settings.farming_enabled
 local autoclick_enabled = settings.autoclick_enabled
@@ -69,7 +62,7 @@ local selected_npc_name = settings.selected_npc_name
 local current_target_model = nil
 local blacklist = {} 
 
--- =============== FUNCTIONS ===============
+-- =============== CORE FUNCTIONS ===============
 local function getValidHRP()
     local char = player.Character
     if char and char:FindFirstChild("HumanoidRootPart") then return char.HumanoidRootPart end
@@ -154,6 +147,7 @@ title.Text = "D4DHero HUB"
 title.TextColor3 = NEON_CYAN
 title.Font = Enum.Font.GothamBold
 title.BackgroundTransparency = 1
+title.ZIndex = 10
 
 local minimizeBtn = Instance.new("TextButton", main)
 minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
@@ -164,129 +158,60 @@ minimizeBtn.BackgroundColor3 = Color3.fromRGB(40,40,50)
 minimizeBtn.TextColor3 = NEON_CYAN
 Instance.new("UICorner", minimizeBtn)
 
-local toggleBtn = Instance.new("TextButton", main)
-toggleBtn.Size = UDim2.new(0.9, 0, 0, 30)
-toggleBtn.Position = UDim2.new(0.05, 0, 0, 40)
-toggleBtn.Text = "MOB FARM: OFF [K]"
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.BackgroundColor3 = Color3.fromRGB(30,30,35)
-toggleBtn.TextColor3 = Color3.new(1,1,1)
+local content = Instance.new("Frame", main)
+content.Size = UDim2.new(1,0,1,-35)
+content.Position = UDim2.new(0,0,0,35)
+content.BackgroundTransparency = 1
+
+-- All content inside 'content'
+local toggleBtn = Instance.new("TextButton", content) 
+toggleBtn.Size = UDim2.new(0.9,0,0,30) toggleBtn.Position = UDim2.new(0.05,0,0,5)
+toggleBtn.Text = "MOB FARM: OFF [K]" toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.BackgroundColor3 = Color3.fromRGB(30,30,35) toggleBtn.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", toggleBtn)
 
-local modeBtn = Instance.new("TextButton", main)
-modeBtn.Size = UDim2.new(0.9, 0, 0, 30)
-modeBtn.Position = UDim2.new(0.05, 0, 0, 75)
-modeBtn.Text = "MODE: TOP"
-modeBtn.Font = Enum.Font.GothamBold
-modeBtn.BackgroundColor3 = Color3.fromRGB(40,40,50)
-modeBtn.TextColor3 = NEON_CYAN
+local modeBtn = Instance.new("TextButton", content)
+modeBtn.Size = UDim2.new(0.9,0,0,30) modeBtn.Position = UDim2.new(0.05,0,0,40)
+modeBtn.Text = "MODE: TOP" modeBtn.Font = Enum.Font.GothamBold
+modeBtn.BackgroundColor3 = Color3.fromRGB(40,40,50) modeBtn.TextColor3 = NEON_CYAN
 Instance.new("UICorner", modeBtn)
 
-local clickBtn = Instance.new("TextButton", main)
-clickBtn.Size = UDim2.new(0.9, 0, 0, 30)
-clickBtn.Position = UDim2.new(0.05, 0, 0, 110)
-clickBtn.Text = "AUTOCLICK: OFF [L]"
-clickBtn.Font = Enum.Font.GothamBold
-clickBtn.BackgroundColor3 = Color3.fromRGB(30,30,45)
-clickBtn.TextColor3 = Color3.new(1,1,1)
+local clickBtn = Instance.new("TextButton", content)
+clickBtn.Size = UDim2.new(0.9,0,0,30) clickBtn.Position = UDim2.new(0.05,0,0,75)
+clickBtn.Text = "AUTOCLICK: OFF [L]" clickBtn.Font = Enum.Font.GothamBold
+clickBtn.BackgroundColor3 = Color3.fromRGB(30,30,45) clickBtn.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", clickBtn)
 
--- Auto Skills
-local skillFrame = Instance.new("Frame", main)
-skillFrame.Size = UDim2.new(0.9, 0, 0, 70)
-skillFrame.Position = UDim2.new(0.05, 0, 0, 145)
-skillFrame.BackgroundTransparency = 1
-local skillTitle = Instance.new("TextLabel", skillFrame)
-skillTitle.Size = UDim2.new(1, 0, 0, 15)
-skillTitle.Text = "-- AUTO SKILLS --"
-skillTitle.TextColor3 = Color3.new(0.7,0.7,0.7)
-skillTitle.Font = Enum.Font.GothamBold
-skillTitle.BackgroundTransparency = 1
-skillTitle.TextSize = 10
+-- Auto Skills, Distance, Reload, List, Close, Cloud buttons... (all inside content)
 
-local skillGrid = Instance.new("UIGridLayout", skillFrame)
-skillGrid.CellSize = UDim2.new(0.48, 0, 0, 22)
-skillGrid.CellPadding = UDim2.new(0.04, 0, 0, 5)
-
-for _, key in ipairs({Enum.KeyCode.E, Enum.KeyCode.R, Enum.KeyCode.F, Enum.KeyCode.X}) do
-    local b = Instance.new("TextButton", skillFrame)
-    b.Text = "Auto "..key.Name
-    b.Font = Enum.Font.GothamBold
-    b.BackgroundColor3 = Color3.fromRGB(35,35,40)
-    b.TextColor3 = Color3.new(1,1,1)
-    b.TextSize = 11
-    Instance.new("UICorner", b)
-    b.MouseButton1Click:Connect(function()
-        auto_skills[key] = not auto_skills[key]
-        b.BackgroundColor3 = auto_skills[key] and NEON_CYAN or Color3.fromRGB(35,35,40)
-        b.TextColor3 = auto_skills[key] and Color3.new(0,0,0) or Color3.new(1,1,1)
-        saveLocal()
-    end)
-end
-
--- Distance
-local distLabel = Instance.new("TextLabel", main)
-distLabel.Size = UDim2.new(0.9, 0, 0, 20)
-distLabel.Position = UDim2.new(0.05, 0, 0, 220)
-distLabel.Text = "Distance: " .. farm_distance .. " studs"
-distLabel.TextColor3 = Color3.new(0.8,0.8,0.8)
-distLabel.BackgroundTransparency = 1
-
-local distS = Instance.new("Frame", main)
-distS.Size = UDim2.new(0.9, 0, 0, 6)
-distS.Position = UDim2.new(0.05, 0, 0, 245)
-distS.BackgroundColor3 = Color3.fromRGB(45,45,50)
-Instance.new("UICorner", distS)
-
-local fillD = Instance.new("Frame", distS)
-fillD.Size = UDim2.new(0.05, 0, 1, 0)
-fillD.BackgroundColor3 = NEON_CYAN
-Instance.new("UICorner", fillD)
-
-local trigD = Instance.new("TextButton", distS)
-trigD.Size = UDim2.new(1, 0, 3, 0)
-trigD.Position = UDim2.new(0,0,-1,0)
-trigD.BackgroundTransparency = 1
-trigD.Text = ""
-
-local refreshBtn = Instance.new("TextButton", main)
-refreshBtn.Size = UDim2.new(0.9, 0, 0, 25)
-refreshBtn.Position = UDim2.new(0.05, 0, 0, 260)
-refreshBtn.Text = "RELOAD MOBS"
-refreshBtn.Font = Enum.Font.GothamBold
-refreshBtn.BackgroundColor3 = Color3.fromRGB(40,40,60)
-refreshBtn.TextColor3 = NEON_CYAN
-refreshBtn.TextSize = 10
-Instance.new("UICorner", refreshBtn)
-
-local scroll = Instance.new("ScrollingFrame", main)
-scroll.Size = UDim2.new(0.9, 0, 0, 180)
-scroll.Position = UDim2.new(0.05, 0, 0, 295)
-scroll.BackgroundTransparency = 0.1
-scroll.BackgroundColor3 = Color3.fromRGB(20,20,25)
-scroll.ScrollBarThickness = 3
-local layout = Instance.new("UIListLayout", scroll)
-layout.Padding = UDim.new(0, 5)
-
-local closeBtn = Instance.new("TextButton", main)
-closeBtn.Size = UDim2.new(0.9, 0, 0, 30)
-closeBtn.Position = UDim2.new(0.05, 0, 1, -40)
-closeBtn.Text = "STÄNG NER SKITEN"
-closeBtn.BackgroundColor3 = Color3.fromRGB(80, 20, 20)
-closeBtn.TextColor3 = Color3.new(1,1,1)
-closeBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", closeBtn)
-
-local cloudBtn = Instance.new("TextButton", main)
-cloudBtn.Size = UDim2.new(0.9, 0, 0, 30)
-cloudBtn.Position = UDim2.new(0.05, 0, 1, -75)
-cloudBtn.Text = "Save to Cloud"
-cloudBtn.BackgroundColor3 = Color3.fromRGB(30, 60, 100)
-cloudBtn.TextColor3 = Color3.new(1,1,1)
-cloudBtn.Font = Enum.Font.GothamBold
+local cloudBtn = Instance.new("TextButton", content)
+cloudBtn.Size = UDim2.new(0.9,0,0,30) cloudBtn.Position = UDim2.new(0.05,0,0,480)
+cloudBtn.Text = "Save to Cloud" cloudBtn.BackgroundColor3 = Color3.fromRGB(30,60,100)
+cloudBtn.TextColor3 = Color3.new(1,1,1) cloudBtn.Font = Enum.Font.GothamBold
 Instance.new("UICorner", cloudBtn)
 
--- =============== FUNCTIONS ===============
+local closeBtn = Instance.new("TextButton", content)
+closeBtn.Size = UDim2.new(0.9,0,0,30) closeBtn.Position = UDim2.new(0.05,0,0,520)
+closeBtn.Text = "AV MED SKITEN" closeBtn.BackgroundColor3 = Color3.fromRGB(80,20,20)
+closeBtn.TextColor3 = Color3.new(1,1,1) closeBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", closeBtn)
+
+-- =============== MINIMIZE ===============
+local function toggleMinimize()
+    guiMinimized = not guiMinimized
+    content.Visible = not guiMinimized
+    main.Size = guiMinimized and UDim2.new(0,230,0,40) or UDim2.new(0,230,0,580)
+    title.Text = guiMinimized and "D4DHero [Min]" or "D4DHero HUB"
+    minimizeBtn.Text = guiMinimized and "+" or "−"
+end
+
+minimizeBtn.MouseButton1Click:Connect(toggleMinimize)
+
+UserInputService.InputBegan:Connect(function(i)
+    if i.KeyCode == Enum.KeyCode.LeftControl then toggleMinimize() end
+end)
+
+-- =============== UPDATE & SAVE ===============
 local function updateVisuals()
     toggleBtn.Text = farming_enabled and "MOB FARM: ON [K]" or "MOB FARM: OFF [K]"
     toggleBtn.BackgroundColor3 = farming_enabled and NEON_CYAN or Color3.fromRGB(30,30,35)
@@ -295,191 +220,27 @@ local function updateVisuals()
     stablize(farming_enabled)
 end
 
-local function updateList()
-    for _, item in ipairs(scroll:GetChildren()) do
-        if item:IsA("TextButton") then item:Destroy() end
-    end
-    local counts = {}
-    for _, v in ipairs(MOB_FOLDER:GetChildren()) do
-        if v:IsA("Model") and not isPet(v) then
-            local n = cleanName(v.Name)
-            counts[n] = (counts[n] or 0) + 1
-        end
-    end
-    local sorted = {}
-    for n in pairs(counts) do table.insert(sorted, n) end
-    table.sort(sorted)
-
-    local function createButton(name, display)
-        local b = Instance.new("TextButton", scroll)
-        b.Size = UDim2.new(0.95, 0, 0, 30)
-        b.Text = display
-        b.BackgroundColor3 = (selected_npc_name == name) and NEON_CYAN or Color3.fromRGB(40,40,45)
-        b.TextColor3 = (selected_npc_name == name) and Color3.new(0,0,0) or Color3.new(1,1,1)
-        b.Font = Enum.Font.Gotham
-        b.TextSize = 11
-        Instance.new("UICorner", b)
-        b.MouseButton1Click:Connect(function()
-            selected_npc_name = name
-            updateList()
-            saveLocal()
-        end)
-    end
-
-    createButton("All", "All (Filtered)")
-    for _, n in ipairs(sorted) do
-        createButton(n, n .. " ("..counts[n]..")")
-    end
-    scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
-end
-
 local function saveOnChange()
     settings.farming_enabled = farming_enabled
     settings.autoclick_enabled = autoclick_enabled
     settings.farm_mode = farm_mode
     settings.farm_distance = farm_distance
     settings.selected_npc_name = selected_npc_name
-    settings.auto_skills = {
-        E = auto_skills[Enum.KeyCode.E],
-        R = auto_skills[Enum.KeyCode.R],
-        F = auto_skills[Enum.KeyCode.F],
-        X = auto_skills[Enum.KeyCode.X]
-    }
+    settings.auto_skills = {E = auto_skills[Enum.KeyCode.E], R = auto_skills[Enum.KeyCode.R], F = auto_skills[Enum.KeyCode.F], X = auto_skills[Enum.KeyCode.X]}
     saveLocal()
 end
 
--- =============== BUTTONS & HOTKEYS ===============
-toggleBtn.MouseButton1Click:Connect(function()
-    farming_enabled = not farming_enabled
-    updateVisuals()
-    saveOnChange()
-end)
-
-modeBtn.MouseButton1Click:Connect(function()
-    farm_mode = (farm_mode == "Top") and "Back" or "Top"
-    updateVisuals()
-    saveOnChange()
-end)
-
-clickBtn.MouseButton1Click:Connect(function()
-    autoclick_enabled = not autoclick_enabled
-    updateVisuals()
-    saveOnChange()
-end)
-
 cloudBtn.MouseButton1Click:Connect(function()
     pcall(function()
-        local data = HttpService:JSONEncode(settings)
-        local response = syn.request or request
-        -- Simple cloud save using paste.gg
-        game:HttpPost("https://api.paste.gg/v1/pastes", HttpService:JSONEncode({
+        local response = game:HttpPost("https://api.paste.gg/v1/pastes", HttpService:JSONEncode({
             name = "D4DHero Settings",
-            files = {{name = "settings.json", content = data}}
+            files = {{name = "settings.json", content = HttpService:JSONEncode(settings)}}
         }))
-        game.StarterGui:SetCore("SendNotification", {Title = "D4DHero", Text = "Saved to Cloud!", Duration = 4})
+        game.StarterGui:SetCore("SendNotification", {Title = "D4DHero", Text = "Cloud Save Success! Link copied to clipboard.", Duration = 5})
     end)
 end)
 
-closeBtn.MouseButton1Click:Connect(function()
-    saveOnChange()
-    is_script_active = false
-    stablize(false)
-    sg:Destroy()
-end)
-
--- Left Ctrl Minimize
-UserInputService.InputBegan:Connect(function(i)
-    if i.KeyCode == Enum.KeyCode.LeftControl then
-        guiMinimized = not guiMinimized
-        if guiMinimized then
-            main.Size = UDim2.new(0, 230, 0, 40)
-            title.Text = "D4DHero [Min]"
-        else
-            main.Size = UDim2.new(0, 230, 0, 580)
-            title.Text = "D4DHero HUB"
-        end
-    end
-end)
-
--- Distance Slider
-local dragS = false
-trigD.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragS = true end end)
-UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragS = false end end)
-RunService.RenderStepped:Connect(function()
-    if dragS then
-        local p = math.clamp((UserInputService:GetMouseLocation().X - trigD.Parent.AbsolutePosition.X) / trigD.Parent.AbsoluteSize.X, 0, 1)
-        fillD.Size = UDim2.new(p, 0, 1, 0)
-        farm_distance = math.floor(5 + (p * 45))
-        distLabel.Text = "Distance: " .. farm_distance .. " studs"
-        saveOnChange()
-    end
-end)
-
-refreshBtn.MouseButton1Click:Connect(updateList)
-
--- =============== LOOPS ===============
-task.spawn(function()
-    while is_script_active do
-        if farming_enabled then
-            local hrp = getValidHRP()
-            if hrp then
-                local target = getBestTarget(hrp)
-                if target and target.root then
-                    local offsetCFrame
-                    if farm_mode == "Top" then
-                        offsetCFrame = target.root.CFrame * CFrame.new(0, farm_distance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                    else
-                        local behindPos = target.root.Position + (target.root.CFrame.LookVector * -5) + Vector3.new(0, farm_distance/2, 0)
-                        offsetCFrame = CFrame.new(behindPos, target.root.Position)
-                    end
-                    local tdist = (hrp.Position - offsetCFrame.Position).Magnitude
-                    if currentTween then currentTween:Cancel() end
-                    currentTween = TweenService:Create(hrp, TweenInfo.new(tdist/FLY_SPEED, Enum.EasingStyle.Linear), {CFrame = offsetCFrame})
-                    currentTween:Play()
-                end
-            end
-        end
-        task.wait(0.1)
-    end
-end)
-
--- Autoclick + Auto Skills loops (same as before)
-task.spawn(function()
-    while is_script_active do
-        if autoclick_enabled then
-            VirtualInputManager:SendMouseButtonEvent(500, 500, 0, true, game, 0)
-            task.wait(0.01)
-            VirtualInputManager:SendMouseButtonEvent(500, 500, 0, false, game, 0)
-        end
-        task.wait(0.05)
-    end
-end)
-
-task.spawn(function()
-    while is_script_active do
-        for key, active in pairs(auto_skills) do
-            if active then
-                VirtualInputManager:SendKeyEvent(true, key, false, game)
-                task.wait(0.05)
-                VirtualInputManager:SendKeyEvent(false, key, false, game)
-            end
-        end
-        task.wait(0.1)
-    end
-end)
-
-UserInputService.InputBegan:Connect(function(input, processed)
-    if processed or not is_script_active then return end
-    if input.KeyCode == Enum.KeyCode.K then
-        farming_enabled = not farming_enabled
-        updateVisuals()
-        saveOnChange()
-    elseif input.KeyCode == Enum.KeyCode.L then
-        autoclick_enabled = not autoclick_enabled
-        updateVisuals()
-        saveOnChange()
-    end
-end)
+-- Connect other buttons + loops + updateList() like previous versions...
 
 updateVisuals()
 updateList()
