@@ -1,26 +1,93 @@
--- D4DHero Ore Farm - LONG RANGE + SPEED
+-- =============================================
+-- SösikExclusive - TALEÅRA
+-- =============================================
+
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
-print("D4DHero OreFarm Loading...")
+print("SösikExclusive - TALEÅRA Full Farm Loaded")
+
+--- =============== INTRO ===============
+local introGui = Instance.new("ScreenGui")
+introGui.Name = "D4ceIntro"
+introGui.ResetOnSpawn = false
+introGui.IgnoreGuiInset = true
+introGui.DisplayOrder = 9999
+introGui.Parent = player:WaitForChild("PlayerGui")
+
+local introFrame = Instance.new("Frame")
+introFrame.Size = UDim2.new(1, 0, 1, 0)
+introFrame.BackgroundTransparency = 1
+introFrame.ZIndex = 10000
+introFrame.Parent = introGui
+
+local d4ceLabel = Instance.new("TextLabel")
+d4ceLabel.Size = UDim2.new(0, 900, 0, 400)      -- Bigger frame
+d4ceLabel.Position = UDim2.new(0.5, -450, 0.5, -200)
+d4ceLabel.BackgroundTransparency = 1
+d4ceLabel.Text = "D4ce"
+d4ceLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+d4ceLabel.TextStrokeTransparency = 0
+d4ceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+d4ceLabel.Font = Enum.Font.GothamBold
+d4ceLabel.TextSize = 80                          -- Starts small
+d4ceLabel.ZIndex = 10001
+d4ceLabel.Parent = introFrame
+
+-- Animate from small to HUGE
+local tweenInfo = TweenInfo.new(2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+local sizeGoal = {TextSize = 990}
+local posGoal = {Position = UDim2.new(0.5, -450, 0.4, -200)}
+
+local tweenSize = TweenService:Create(d4ceLabel, tweenInfo, sizeGoal)
+local tweenPos = TweenService:Create(d4ceLabel, tweenInfo, posGoal)
+
+tweenSize:Play()
+tweenPos:Play()
+
+-- Optional: make it flash a bit at the end
+task.delay(2.8, function()
+    if d4ceLabel then
+        d4ceLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        task.wait(0.1)
+        d4ceLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+    end
+end)
+
+task.delay(2.5, function()
+    if introGui then
+        introGui:Destroy()
+    end
+end)
 
 -- =============== SETTINGS ===============
-local localFile = "D4DHero_OreFarm_Settings.json"
+local localFile = "SösikExclusive_TALEARA_Settings.json"
+
 local settings = {
     ore_farm_enabled = false,
     autoclick_enabled = false,
-    farm_distance = 5,
+    harvest_farm_enabled = false,
+    mob_farm_enabled = false,
+    mob_esp_enabled = false,
+    brightness_enabled = false,
+    farm_distance = 12,
     move_speed = 50,
     selected_ore_type = "All",
+    selected_harvest_type = "All",
+    selected_mob_type = "All",
     timeout = 15
 }
 
@@ -41,61 +108,178 @@ loadSettings()
 -- Variables
 local oreFarmEnabled = settings.ore_farm_enabled
 local autoClickEnabled = settings.autoclick_enabled
-local farmDistance = math.max(1, settings.farm_distance)
-local moveSpeed = math.clamp(settings.move_speed, 16, 99)
+local harvestFarmEnabled = settings.harvest_farm_enabled
+local mobFarmEnabled = settings.mob_farm_enabled
+local mobEspEnabled = settings.mob_esp_enabled
+local brightnessEnabled = settings.brightness_enabled
+local farmDistance = math.clamp(settings.farm_distance, 1, 100)
+local moveSpeed = math.clamp(settings.move_speed, 16, 120)
+
 local selectedOreType = settings.selected_ore_type
+local selectedHarvestType = settings.selected_harvest_type
+local selectedMobType = settings.selected_mob_type
+
 local currentTarget = nil
-local lastHitTime = 0
-local lastClickTime = 0
+local lastActionTime = 0
+local clickConnection = nil
 
--- Ore Types
-local oreOptions = {"All", "Quartz", "Coal", "Stone", "Cya", "Iron", "Copper"}
+local targetMobs = {"All", "Caterpillar", "ElerGorglin", "FlyingBronzeBell", "Gorglin", "Grizzly Bear", "TiwntownGuard", "Wilyshrub", "Wood Deer", "OldenIronward"}
 
-local function isValidOre(part)
-    if not part or not part:IsA("BasePart") then return false end
-    if part.Transparency > 0.8 then return false end
+-- =============== ESP SYSTEM ===============
+local espFolder = Instance.new("Folder")
+espFolder.Name = "SösikExclusive_ESP"
+espFolder.Parent = Workspace
 
-    local fullName = (part.Name or "") .. " " .. (part.Parent and part.Parent.Name or "")
-    
+local function createESP(part, name, color)
+    if part:FindFirstChild("SösikESP") then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "SösikESP"
+    highlight.FillColor = color
+    highlight.OutlineColor = color
+    highlight.FillTransparency = 0.4
+    highlight.OutlineTransparency = 0
+    highlight.Parent = part
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "SösikNameTag"
+    billboard.Adornee = part
+    billboard.Size = UDim2.new(0, 180, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = part
+
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(1,0,1,0)
+    text.BackgroundTransparency = 1
+    text.Text = name
+    text.TextColor3 = color
+    text.TextStrokeTransparency = 0
+    text.Font = Enum.Font.GothamBold
+    text.TextSize = 14
+    text.Parent = billboard
+end
+
+local function updateAllESP()
+    -- Ores (Black)
+    if oreEspEnabled then
+        local deposits = Workspace:FindFirstChild("Deposits")
+        if deposits then
+            for _, dep in ipairs(deposits:GetChildren()) do
+                for _, ore in ipairs(dep:GetChildren()) do
+                    if ore:IsA("BasePart") then
+                        local name = ore.Name
+                        if not (name:find("Model") or name:find("Union") or name:find("Spawn") or name:find("Hitbox")) then
+                            local displayName = name:gsub("OreHitbox", ""):gsub("Resource", ""):gsub("Hitbox", "")
+                            createESP(ore, displayName, Color3.fromRGB(40, 40, 40))
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Harvestables (Blue) - Only show "Harvestable" if has Drop
+    if harvestEspEnabled then
+        local harvestables = Workspace:FindFirstChild("Harvestables")
+        if harvestables then
+            for _, obj in ipairs(harvestables:GetDescendants()) do
+                if obj:IsA("BasePart") and obj:FindFirstChild("Drop") or (obj.Parent and obj.Parent:FindFirstChild("Drop")) then
+                    createESP(obj, "Harvestable", Color3.fromRGB(80, 180, 255))
+                end
+            end
+        end
+    end
+
+    -- Mobs (Red)
+    if mobEspEnabled then
+        for _, mob in ipairs(Workspace.Mobs:GetChildren()) do
+            if table.find(targetMobs, mob.Name) then
+                createESP(mob, mob.Name, Color3.fromRGB(255, 80, 80))
+            end
+        end
+    end
+end
+
+-- =============== VALIDATION ===============
+local function isValidOre(ore)
+    if not ore or not ore:IsA("BasePart") then return false end
+    local nameStr = (ore.Name or ""):lower() .. " " .. (ore.Parent and ore.Parent.Name or ""):lower()
+
     if selectedOreType == "All" then return true end
-    
-    if selectedOreType == "Cya" and fullName:find("Cyastone") then return true end
-    if selectedOreType == "Quartz" and fullName:find("Quartz") then return true end
-    if selectedOreType == "Coal" and fullName:find("Coal") then return true end
-    if selectedOreType == "Stone" and (fullName:find("Stone") or fullName:find("StoneResource")) then return true end
-    if selectedOreType == "Iron" and fullName:find("Iron") then return true end
-    if selectedOreType == "Copper" and fullName:find("Copper") then return true end
+    if selectedOreType == "Quartz" and nameStr:find("quartz") then return true end
+    if selectedOreType == "Coal" and nameStr:find("coal") then return true end
+    if selectedOreType == "Stone" and (nameStr:find("stone") or nameStr:find("stoneresource")) then return true end
+    if selectedOreType == "Cya" and nameStr:find("cyastone") then return true end
+    if selectedOreType == "Iron" and nameStr:find("iron") then return true end
+    if selectedOreType == "Copper" and nameStr:find("copper") then return true end
+
     return false
+end
+
+local function isValidHarvestable(obj)
+    if not obj or not obj:IsA("BasePart") or (obj.Transparency and obj.Transparency > 0.7) then return false end
+    local hasDrop = obj:FindFirstChild("Drop") or (obj.Parent and obj.Parent:FindFirstChild("Drop"))
+    if not hasDrop then return false end
+
+    local name = (obj.Name or ""):lower()
+    local parentName = (obj.Parent and obj.Parent.Name or ""):lower()
+    local fullName = name .. " " .. parentName
+
+    if selectedHarvestType == "All" then return true end
+    local target = selectedHarvestType:lower()
+
+    if fullName:find(target) then return true end
+    if target == "claretflower" and fullName:find("claret") then return true end
+    if target == "rootherb" and fullName:find("rootherb") then return true end
+    if target == "glarecap" and fullName:find("glare") then return true end
+    if target == "babmushroom" and (fullName:find("bab") or fullName:find("mushroom")) then return true end
+
+    return false
+end
+
+-- Brightness
+local function toggleBrightness(state)
+    if state then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.Ambient = Color3.fromRGB(255,255,255)
+        Lighting.FogEnd = 100000
+    else
+        Lighting.Brightness = 1
+        Lighting.ClockTime = 12
+        Lighting.Ambient = Color3.fromRGB(100,100,100)
+        Lighting.FogEnd = 10000
+    end
 end
 
 -- =============== GUI ===============
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SösikExclusive-TALEåRA"
+screenGui.Name = "SösikExclusive_TALEARA"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 270, 0, 620)
-mainFrame.Position = UDim2.new(0.05, 0, 0.08, 0)
+mainFrame.Size = UDim2.new(0, 310, 0, 820)
+mainFrame.Position = UDim2.new(0.05, 0, 0.03, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 mainFrame.Parent = screenGui
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
 
--- Title Bar (Draggable)
 local titleBar = Instance.new("Frame")
 titleBar.Size = UDim2.new(1, 0, 0, 40)
 titleBar.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
 titleBar.Parent = mainFrame
 Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 10)
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -40, 1, 0)
-title.BackgroundTransparency = 1
-title.Text = "SösikExlusive-TaleÅra"
-title.TextColor3 = Color3.fromRGB(20,20,20)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 18
-title.Parent = titleBar
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -40, 1, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "SösikExclusive - TALEÅRA"
+titleLabel.TextColor3 = Color3.fromRGB(20,20,20)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 18
+titleLabel.Parent = titleBar
 
 local minimizeBtn = Instance.new("TextButton")
 minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
@@ -115,8 +299,7 @@ content.Parent = mainFrame
 
 -- Toggles
 local oreToggle = Instance.new("TextButton")
-oreToggle.Size = UDim2.new(0.9,0,0,45)
-oreToggle.Position = UDim2.new(0.05,0,0,10)
+oreToggle.Size = UDim2.new(0.9,0,0,45) oreToggle.Position = UDim2.new(0.05,0,0,10)
 oreToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
 oreToggle.Text = "FARMBOT: OFF"
 oreToggle.TextColor3 = Color3.new(1,1,1)
@@ -126,46 +309,111 @@ oreToggle.Parent = content
 Instance.new("UICorner", oreToggle).CornerRadius = UDim.new(0,8)
 
 local clickToggle = Instance.new("TextButton")
-clickToggle.Size = UDim2.new(0.9,0,0,45)
-clickToggle.Position = UDim2.new(0.05,0,0,65)
+clickToggle.Size = UDim2.new(0.9,0,0,45) clickToggle.Position = UDim2.new(0.05,0,0,65)
 clickToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
-clickToggle.Text = "CLICKERPRO: OFF"
+clickToggle.Text = "Auto not working blud"
 clickToggle.TextColor3 = Color3.new(1,1,1)
 clickToggle.Font = Enum.Font.GothamBold
 clickToggle.TextSize = 16
 clickToggle.Parent = content
 Instance.new("UICorner", clickToggle).CornerRadius = UDim.new(0,8)
 
--- Ore Type
+local brightnessToggle = Instance.new("TextButton")
+brightnessToggle.Size = UDim2.new(0.9,0,0,45) brightnessToggle.Position = UDim2.new(0.05,0,0,120)
+brightnessToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
+brightnessToggle.Text = "BRIGHTNESS: OFF"
+brightnessToggle.TextColor3 = Color3.new(1,1,1)
+brightnessToggle.Font = Enum.Font.GothamBold
+brightnessToggle.TextSize = 16
+brightnessToggle.Parent = content
+Instance.new("UICorner", brightnessToggle).CornerRadius = UDim.new(0,8)
+
+local harvestToggle = Instance.new("TextButton")
+harvestToggle.Size = UDim2.new(0.9,0,0,45) harvestToggle.Position = UDim2.new(0.05,0,0,175)
+harvestToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
+harvestToggle.Text = "HARVESTFARM: OFF"
+harvestToggle.TextColor3 = Color3.new(1,1,1)
+harvestToggle.Font = Enum.Font.GothamBold
+harvestToggle.TextSize = 16
+harvestToggle.Parent = content
+Instance.new("UICorner", harvestToggle).CornerRadius = UDim.new(0,8)
+
+local mobToggle = Instance.new("TextButton")
+mobToggle.Size = UDim2.new(0.9,0,0,45) mobToggle.Position = UDim2.new(0.05,0,0,230)
+mobToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
+mobToggle.Text = "MOB FARM: OFF"
+mobToggle.TextColor3 = Color3.new(1,1,1)
+mobToggle.Font = Enum.Font.GothamBold
+mobToggle.TextSize = 16
+mobToggle.Parent = content
+Instance.new("UICorner", mobToggle).CornerRadius = UDim.new(0,8)
+
+local espToggle = Instance.new("TextButton")
+espToggle.Size = UDim2.new(0.9,0,0,45) espToggle.Position = UDim2.new(0.05,0,0,285)
+espToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
+espToggle.Text = "MOB ESP: OFF"
+espToggle.TextColor3 = Color3.new(1,1,1)
+espToggle.Font = Enum.Font.GothamBold
+espToggle.TextSize = 16
+espToggle.Parent = content
+Instance.new("UICorner", espToggle).CornerRadius = UDim.new(0,8)
+
+-- Type Selectors
 local typeLabel = Instance.new("TextLabel")
-typeLabel.Size = UDim2.new(0.9,0,0,25)
-typeLabel.Position = UDim2.new(0.05,0,0,125)
+typeLabel.Size = UDim2.new(0.9,0,0,25) typeLabel.Position = UDim2.new(0.05,0,0,340)
 typeLabel.BackgroundTransparency = 1
 typeLabel.Text = "Selected Ore: " .. selectedOreType
 typeLabel.TextColor3 = Color3.fromRGB(180,180,180)
 typeLabel.Parent = content
 
 local typeButton = Instance.new("TextButton")
-typeButton.Size = UDim2.new(0.9,0,0,40)
-typeButton.Position = UDim2.new(0.05,0,0,155)
+typeButton.Size = UDim2.new(0.9,0,0,40) typeButton.Position = UDim2.new(0.05,0,0,365)
 typeButton.BackgroundColor3 = Color3.fromRGB(50,50,70)
 typeButton.Text = "Change Ore Type"
 typeButton.TextColor3 = Color3.new(1,1,1)
 typeButton.Parent = content
 Instance.new("UICorner", typeButton)
 
--- Distance
+local harvestLabel = Instance.new("TextLabel")
+harvestLabel.Size = UDim2.new(0.9,0,0,25) harvestLabel.Position = UDim2.new(0.05,0,0,415)
+harvestLabel.BackgroundTransparency = 1
+harvestLabel.Text = "Selected Harvestable: " .. selectedHarvestType
+harvestLabel.TextColor3 = Color3.fromRGB(180,180,180)
+harvestLabel.Parent = content
+
+local harvestButton = Instance.new("TextButton")
+harvestButton.Size = UDim2.new(0.9,0,0,40) harvestButton.Position = UDim2.new(0.05,0,0,440)
+harvestButton.BackgroundColor3 = Color3.fromRGB(50,50,70)
+harvestButton.Text = "Change Harvest Type"
+harvestButton.TextColor3 = Color3.new(1,1,1)
+harvestButton.Parent = content
+Instance.new("UICorner", harvestButton)
+
+local mobLabel = Instance.new("TextLabel")
+mobLabel.Size = UDim2.new(0.9,0,0,25) mobLabel.Position = UDim2.new(0.05,0,0,490)
+mobLabel.BackgroundTransparency = 1
+mobLabel.Text = "Selected Mob: " .. selectedMobType
+mobLabel.TextColor3 = Color3.fromRGB(180,180,180)
+mobLabel.Parent = content
+
+local mobButton = Instance.new("TextButton")
+mobButton.Size = UDim2.new(0.9,0,0,40) mobButton.Position = UDim2.new(0.05,0,0,515)
+mobButton.BackgroundColor3 = Color3.fromRGB(50,50,70)
+mobButton.Text = "Change Mob Type"
+mobButton.TextColor3 = Color3.new(1,1,1)
+mobButton.Parent = content
+Instance.new("UICorner", mobButton)
+
+-- Distance Slider
 local distLabel = Instance.new("TextLabel")
-distLabel.Size = UDim2.new(0.9,0,0,25)
-distLabel.Position = UDim2.new(0.05,0,0,210)
+distLabel.Size = UDim2.new(0.9,0,0,25) distLabel.Position = UDim2.new(0.05,0,0,570)
 distLabel.BackgroundTransparency = 1
 distLabel.Text = "Teleport Distance: " .. farmDistance
 distLabel.TextColor3 = Color3.fromRGB(180,180,180)
 distLabel.Parent = content
 
 local distBar = Instance.new("Frame")
-distBar.Size = UDim2.new(0.9,0,0,12)
-distBar.Position = UDim2.new(0.05,0,0,240)
+distBar.Size = UDim2.new(0.9,0,0,14) distBar.Position = UDim2.new(0.05,0,0,595)
 distBar.BackgroundColor3 = Color3.fromRGB(45,45,55)
 distBar.Parent = content
 Instance.new("UICorner", distBar)
@@ -178,16 +426,14 @@ Instance.new("UICorner", fillDist)
 
 -- Movement Speed
 local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(0.9,0,0,25)
-speedLabel.Position = UDim2.new(0.05,0,0,270)
+speedLabel.Size = UDim2.new(0.9,0,0,25) speedLabel.Position = UDim2.new(0.05,0,0,625)
 speedLabel.BackgroundTransparency = 1
 speedLabel.Text = "Movement Speed: " .. moveSpeed
 speedLabel.TextColor3 = Color3.fromRGB(180,180,180)
 speedLabel.Parent = content
 
 local speedBar = Instance.new("Frame")
-speedBar.Size = UDim2.new(0.9,0,0,12)
-speedBar.Position = UDim2.new(0.05,0,0,300)
+speedBar.Size = UDim2.new(0.9,0,0,14) speedBar.Position = UDim2.new(0.05,0,0,650)
 speedBar.BackgroundColor3 = Color3.fromRGB(45,45,55)
 speedBar.Parent = content
 Instance.new("UICorner", speedBar)
@@ -198,35 +444,69 @@ fillSpeed.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
 fillSpeed.Parent = speedBar
 Instance.new("UICorner", fillSpeed)
 
--- Close
+-- Godmode & Close
+local godBtn = Instance.new("TextButton")
+godBtn.Size = UDim2.new(0.9,0,0,45)
+godBtn.Position = UDim2.new(0.05,0,0,680)
+godBtn.BackgroundColor3 = Color3.fromRGB(80, 40, 120)
+godBtn.Text = "LOAD GODMODE"
+godBtn.TextColor3 = Color3.new(1,1,1)
+godBtn.Font = Enum.Font.GothamBold
+godBtn.TextSize = 16
+godBtn.Parent = content
+Instance.new("UICorner", godBtn)
+
 local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0.9,0,0,45)
-closeBtn.Position = UDim2.new(0.05,0,0,520)
+closeBtn.Size = UDim2.new(0.9,0,0,50)
+closeBtn.Position = UDim2.new(0.05,0,0,735)
 closeBtn.BackgroundColor3 = Color3.fromRGB(140, 30, 30)
 closeBtn.Text = "STÄNG AV SKITEN"
 closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 28
 closeBtn.Parent = content
 Instance.new("UICorner", closeBtn)
 
--- =============== DRAG & MINIMIZE ===============
-local dragging = false
-titleBar.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end end)
-titleBar.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
-
-RunService.RenderStepped:Connect(function()
-    if dragging then
-        local m = UserInputService:GetMouseLocation()
-        mainFrame.Position = UDim2.new(0, m.X - mainFrame.AbsoluteSize.X/2, 0, m.Y - 20)
-    end
-end)
-
+-- =============== MINIMIZE ===============
 local minimized = false
-local originalSize = mainFrame.Size
 minimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     content.Visible = not minimized
-    mainFrame.Size = minimized and UDim2.new(0, 270, 0, 40) or originalSize
+    mainFrame.Size = minimized and UDim2.new(0, 310, 0, 40) or UDim2.new(0, 310, 0, 820)
     minimizeBtn.Text = minimized and "+" or "-"
+end)
+
+-- =============== SLIDERS ===============
+local function setupSlider(bar, fill, label, minVal, maxVal, updateFunc)
+    local dragging = false
+    bar.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    bar.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    RunService.RenderStepped:Connect(function()
+        if dragging then
+            local percent = math.clamp((UserInputService:GetMouseLocation().X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+            fill.Size = UDim2.new(percent, 0, 1, 0)
+            local value = math.floor(minVal + percent * (maxVal - minVal))
+            label.Text = label.Text:match(".*: ") .. value
+            updateFunc(value)
+        end
+    end)
+end
+
+setupSlider(distBar, fillDist, distLabel, 1, 100, function(v)
+    farmDistance = v
+    settings.farm_distance = v
+    saveSettings()
+end)
+
+setupSlider(speedBar, fillSpeed, speedLabel, 16, 120, function(v)
+    moveSpeed = v
+    settings.move_speed = v
+    saveSettings()
+    if humanoid then humanoid.WalkSpeed = v end
 end)
 
 -- =============== BUTTONS ===============
@@ -240,19 +520,78 @@ end)
 
 clickToggle.MouseButton1Click:Connect(function()
     autoClickEnabled = not autoClickEnabled
-    clickToggle.Text = "CLICKERPRO: " .. (autoClickEnabled and "ON" or "OFF")
+    clickToggle.Text = "AUTO CLICK: " .. (autoClickEnabled and "ON" or "OFF")
     clickToggle.BackgroundColor3 = autoClickEnabled and Color3.fromRGB(0,180,80) or Color3.fromRGB(40,40,50)
     settings.autoclick_enabled = autoClickEnabled
     saveSettings()
 end)
 
+brightnessToggle.MouseButton1Click:Connect(function()
+    brightnessEnabled = not brightnessEnabled
+    brightnessToggle.Text = "BRIGHTNESS: " .. (brightnessEnabled and "ON" or "OFF")
+    brightnessToggle.BackgroundColor3 = brightnessEnabled and Color3.fromRGB(0,180,80) or Color3.fromRGB(40,40,50)
+    toggleBrightness(brightnessEnabled)
+    settings.brightness_enabled = brightnessEnabled
+    saveSettings()
+end)
+
+harvestToggle.MouseButton1Click:Connect(function()
+    harvestFarmEnabled = not harvestFarmEnabled
+    harvestToggle.Text = "HARVESTFARM: " .. (harvestFarmEnabled and "ON" or "OFF")
+    harvestToggle.BackgroundColor3 = harvestFarmEnabled and Color3.fromRGB(0,180,80) or Color3.fromRGB(40,40,50)
+    settings.harvest_farm_enabled = harvestFarmEnabled
+    saveSettings()
+end)
+
+mobToggle.MouseButton1Click:Connect(function()
+    mobFarmEnabled = not mobFarmEnabled
+    mobToggle.Text = "MOB FARM: " .. (mobFarmEnabled and "ON" or "OFF")
+    mobToggle.BackgroundColor3 = mobFarmEnabled and Color3.fromRGB(0,180,80) or Color3.fromRGB(40,40,50)
+    settings.mob_farm_enabled = mobFarmEnabled
+    saveSettings()
+end)
+
+espToggle.MouseButton1Click:Connect(function()
+    mobEspEnabled = not mobEspEnabled
+    espToggle.Text = "MOB ESP: " .. (mobEspEnabled and "ON" or "OFF")
+    espToggle.BackgroundColor3 = mobEspEnabled and Color3.fromRGB(0,180,80) or Color3.fromRGB(40,40,50)
+    settings.mob_esp_enabled = mobEspEnabled
+    saveSettings()
+end)
+
 typeButton.MouseButton1Click:Connect(function()
-    local idx = table.find(oreOptions, selectedOreType) or 1
-    idx = idx % #oreOptions + 1
-    selectedOreType = oreOptions[idx]
+    local types = {"All", "Quartz", "Coal", "Stone", "Cya", "Iron", "Copper"}
+    local idx = table.find(types, selectedOreType) or 1
+    idx = (idx % #types) + 1
+    selectedOreType = types[idx]
     typeLabel.Text = "Selected Ore: " .. selectedOreType
     settings.selected_ore_type = selectedOreType
     saveSettings()
+end)
+
+harvestButton.MouseButton1Click:Connect(function()
+    local types = {"All", "Glarecap", "Rootherb", "RedDrumMushroom", "Kitty Flower", "Deep Rootherb", "ClaretFlower", "Cattail", "Carrot", "BabMushroom", "AzureFlower", "AmberFlower"}
+    local idx = table.find(types, selectedHarvestType) or 1
+    idx = (idx % #types) + 1
+    selectedHarvestType = types[idx]
+    harvestLabel.Text = "Selected Harvestable: " .. selectedHarvestType
+    settings.selected_harvest_type = selectedHarvestType
+    saveSettings()
+end)
+
+mobButton.MouseButton1Click:Connect(function()
+    local idx = table.find(targetMobs, selectedMobType) or 1
+    idx = (idx % #targetMobs) + 1
+    selectedMobType = targetMobs[idx]
+    mobLabel.Text = "Selected Mob: " .. selectedMobType
+    settings.selected_mob_type = selectedMobType
+    saveSettings()
+end)
+
+godBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Dungeon-Heroes-GODMODE-Keyless-Free-62970"))()
+    end)
 end)
 
 closeBtn.MouseButton1Click:Connect(function()
@@ -260,90 +599,115 @@ closeBtn.MouseButton1Click:Connect(function()
     screenGui:Destroy()
 end)
 
--- Distance Slider
-local distDragging = false
-fillDist.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then distDragging = true end end)
-UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then distDragging = false end end)
-
--- Speed Slider
-local speedDragging = false
-fillSpeed.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then speedDragging = true end end)
-UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then speedDragging = false end end)
-
-RunService.RenderStepped:Connect(function()
-    if distDragging then
-        local p = math.clamp((UserInputService:GetMouseLocation().X - distBar.AbsolutePosition.X) / distBar.AbsoluteSize.X, 0, 1)
-        fillDist.Size = UDim2.new(p, 0, 1, 0)
-        farmDistance = math.max(1, math.floor(1 + p * 99))
-        distLabel.Text = "Teleport Distance: " .. farmDistance
-        settings.farm_distance = farmDistance
-        saveSettings()
-    end
-    
-    if speedDragging then
-        local p = math.clamp((UserInputService:GetMouseLocation().X - speedBar.AbsolutePosition.X) / speedBar.AbsoluteSize.X, 0, 1)
-        fillSpeed.Size = UDim2.new(p, 0, 1, 0)
-        moveSpeed = math.floor(16 + p * 83)
-        speedLabel.Text = "Movement Speed: " .. moveSpeed
-        settings.move_speed = moveSpeed
-        saveSettings()
-        
-        if humanoid then humanoid.WalkSpeed = moveSpeed end
-    end
-end)
-
--- =============== FARM LOGIC ===============
-local function findBestOre()
-    local best, bestDist = nil, math.huge
-    local deposits = Workspace:FindFirstChild("Deposits")
-    if not deposits then return nil end
-
-    for _, obj in ipairs(deposits:GetDescendants()) do
-        if isValidOre(obj) then
-            local dist = (hrp.Position - obj.Position).Magnitude
-            if dist < bestDist then
-                bestDist = dist
-                best = obj
-            end
-        end
-    end
-    return best
-end
-
+-- =============== FARM LOOPS ===============
+-- Ore Farm
 task.spawn(function()
     while true do
         if oreFarmEnabled and hrp then
-            local target = findBestOre()
-            if target then
-                currentTarget = target
-                lastHitTime = tick()
-
-                local dir = (target.Position - hrp.Position).Unit
-                local targetPos = target.Position - dir * farmDistance
-                hrp.CFrame = CFrame.new(targetPos, target.Position)
-            end
-
-            if autoClickEnabled and currentTarget and (tick() - lastHitTime < settings.timeout) then
-                if tick() - lastClickTime > 0.07 then
-                    VirtualInputManager:SendMouseButtonEvent(600, 400, 0, true, game, 0)
-                    task.wait(0.03)
-                    VirtualInputManager:SendMouseButtonEvent(600, 400, 0, false, game, 0)
-                    lastClickTime = tick()
+            local best, bestDist = nil, math.huge
+            local deposits = Workspace:FindFirstChild("Deposits")
+            if deposits then
+                for _, dep in ipairs(deposits:GetChildren()) do
+                    for _, ore in ipairs(dep:GetChildren()) do
+                        if ore:IsA("BasePart") and isValidOre(ore) then
+                            local dist = (hrp.Position - ore.Position).Magnitude
+                            if dist < bestDist and dist < 1200 then
+                                bestDist = dist
+                                best = ore
+                            end
+                        end
+                    end
                 end
             end
+            if best then
+                local dir = (best.Position - hrp.Position).Unit
+                local targetPos = best.Position - dir * farmDistance
+                hrp.CFrame = CFrame.new(targetPos, best.Position)
+            end
         end
-        task.wait(0.15)
+        task.wait(0.12)
     end
 end)
 
--- WalkSpeed
-if humanoid then humanoid.WalkSpeed = moveSpeed end
+-- Harvest Farm (High Range)
+task.spawn(function()
+    while true do
+        if harvestFarmEnabled and hrp then
+            local best, bestDist = nil, math.huge
+            local folder = Workspace:FindFirstChild("Harvestables")
+            if folder then
+                for _, obj in ipairs(folder:GetDescendants()) do
+                    if isValidHarvestable(obj) then
+                        local dist = (hrp.Position - obj.Position).Magnitude
+                        if dist < bestDist and dist < 1200 then
+                            bestDist = dist
+                            best = obj
+                        end
+                    end
+                end
+            end
+            if best then
+                local dir = (best.Position - hrp.Position).Unit
+                local targetPos = best.Position - dir * farmDistance
+                hrp.CFrame = CFrame.new(targetPos, best.Position)
+                task.wait(0.6)
+                pcall(function() ReplicatedStorage.Remotes.ItemPickup:InvokeServer(best) end)
+            end
+        end
+        task.wait(0.35)
+    end
+end)
 
-player.CharacterAdded:Connect(function(newChar)
-    character = newChar
-    hrp = newChar:WaitForChild("HumanoidRootPart")
-    humanoid = newChar:WaitForChild("Humanoid")
+-- Mob Farm
+task.spawn(function()
+    while true do
+        if mobFarmEnabled and hrp then
+            local best, bestDist = nil, math.huge
+            for _, mob in ipairs(Workspace.Mobs:GetChildren()) do
+                if (selectedMobType == "All" or mob.Name == selectedMobType) and table.find(targetMobs, mob.Name) then
+                    local root = mob:FindFirstChild("HumanoidRootPart") or mob.PrimaryPart
+                    if root then
+                        local dist = (hrp.Position - root.Position).Magnitude
+                        if dist < bestDist and dist < 1200 then
+                            bestDist = dist
+                            best = root
+                        end
+                    end
+                end
+            end
+            if best then
+                local dir = (best.Position - hrp.Position).Unit
+                local targetPos = best.Position - dir * farmDistance
+                hrp.CFrame = CFrame.new(targetPos, best.Position)
+            end
+        end
+        task.wait(0.18)
+    end
+end)
+
+-- Movement Speed
+RunService.Heartbeat:Connect(function()
     if humanoid then humanoid.WalkSpeed = moveSpeed end
 end)
 
-print("Farmbot LOADED")
+-- ESP Update
+RunService.Heartbeat:Connect(function()
+    if mobEspEnabled then
+        updateAllESP()
+    end
+end)
+
+-- Brightness Loop
+task.spawn(function()
+    while true do
+        if brightnessEnabled then
+            toggleBrightness(true)
+            task.wait(6)
+            toggleBrightness(false)
+            task.wait(6)
+        end
+        task.wait(1)
+    end
+end)
+
+print("ÄNTERLIGEN")
