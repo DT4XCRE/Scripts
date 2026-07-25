@@ -1,6 +1,5 @@
 --[[
-    D4ce Hub - Clean Cyberpunk Glass (Base UI)
-    Large size • Red close button • Combined sliders • Pages 1-4
+    D4ce UI
 ]]
 
 local Players          = game:GetService("Players")
