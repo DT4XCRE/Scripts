@@ -1,0 +1,394 @@
+-- =============================================
+-- SösikExclusiveAutoclicker
+-- =============================================
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+-- Settings
+local settings = {
+    Enabled = false,
+    Interval = 0,
+    Milliseconds = 100,
+    MouseButton = "Left",
+    UseCurrentLocation = true,
+    PickedX = 0,
+    PickedY = 0,
+    WaitingForPick = false,
+    Hotkey = Enum.KeyCode.Q
+}
+
+-- Red Cursor
+local RedCursor = Instance.new("Frame")
+RedCursor.Size = UDim2.new(0, 12, 0, 12)
+RedCursor.BackgroundColor3 = Color3.fromRGB(255, 30, 30)
+RedCursor.BorderSizePixel = 0
+RedCursor.AnchorPoint = Vector2.new(0.5, 0.5)
+RedCursor.Visible = false
+RedCursor.ZIndex = 100
+RedCursor.Parent = player:WaitForChild("PlayerGui")
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0)
+UICorner.Parent = RedCursor
+
+local function updateRedCursor(x, y)
+    RedCursor.Position = UDim2.new(0, x, 0, y)
+    RedCursor.Visible = true
+end
+
+local function getWaitTime()
+    return settings.Interval + (settings.Milliseconds / 1000)
+end
+
+local function doClick()
+    local x, y
+
+    if settings.UseCurrentLocation then
+        local pos = UserInputService:GetMouseLocation()
+        x = pos.X
+        y = pos.Y
+    else
+        x = settings.PickedX
+        y = settings.PickedY
+    end
+
+    -- Show red cursor
+    updateRedCursor(x, y)
+
+    if settings.MouseButton == "Left" then
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
+    else
+        VirtualInputManager:SendMouseButtonEvent(x, y, 1, true, game, 1)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 1, false, game, 1)
+    end
+end
+
+-- Click Loop
+task.spawn(function()
+    while true do
+        if settings.Enabled then
+            doClick()
+            task.wait(getWaitTime())
+        else
+            RedCursor.Visible = false
+            task.wait(0.05)
+        end
+    end
+end)
+
+-- ================= GUI =================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "SösikExclusiveAutoclicker"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 380, 0, 480)
+Main.Position = UDim2.new(0.05, 0, 0.15, 0)
+Main.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
+Main.Parent = ScreenGui
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 45)
+TitleBar.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+TitleBar.Parent = Main
+Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 12)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -50, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "SösikExclusiveAutoclicker"
+Title.TextColor3 = Color3.fromRGB(15, 15, 20)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 17
+Title.Parent = TitleBar
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 40, 0, 40)
+CloseBtn.Position = UDim2.new(1, -42, 0, 2)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Text = "×"
+CloseBtn.TextColor3 = Color3.fromRGB(20, 20, 20)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 26
+CloseBtn.Parent = TitleBar
+
+-- Dragging
+local dragging, dragStart, startPos
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Main.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+TitleBar.InputEnded:Connect(function() dragging = false end)
+
+-- Content
+local Content = Instance.new("Frame")
+Content.Size = UDim2.new(1, -20, 1, -60)
+Content.Position = UDim2.new(0, 10, 0, 55)
+Content.BackgroundTransparency = 1
+Content.Parent = Main
+
+-- Interval
+local IntervalLabel = Instance.new("TextLabel")
+IntervalLabel.Size = UDim2.new(1, 0, 0, 22)
+IntervalLabel.BackgroundTransparency = 1
+IntervalLabel.Text = "Click Interval"
+IntervalLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
+IntervalLabel.Font = Enum.Font.GothamBold
+IntervalLabel.TextSize = 15
+IntervalLabel.TextXAlignment = Enum.TextXAlignment.Left
+IntervalLabel.Parent = Content
+
+local SecBox = Instance.new("TextBox")
+SecBox.Size = UDim2.new(0.45, 0, 0, 32)
+SecBox.Position = UDim2.new(0, 0, 0, 28)
+SecBox.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+SecBox.Text = "0"
+SecBox.PlaceholderText = "Seconds"
+SecBox.TextColor3 = Color3.new(1,1,1)
+SecBox.Font = Enum.Font.Gotham
+SecBox.TextSize = 15
+SecBox.Parent = Content
+Instance.new("UICorner", SecBox).CornerRadius = UDim.new(0, 6)
+
+local MsBox = Instance.new("TextBox")
+MsBox.Size = UDim2.new(0.45, 0, 0, 32)
+MsBox.Position = UDim2.new(0.52, 0, 0, 28)
+MsBox.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+MsBox.Text = "100"
+MsBox.PlaceholderText = "Milliseconds"
+MsBox.TextColor3 = Color3.new(1,1,1)
+MsBox.Font = Enum.Font.Gotham
+MsBox.TextSize = 15
+MsBox.Parent = Content
+Instance.new("UICorner", MsBox).CornerRadius = UDim.new(0, 6)
+
+-- Mouse Button
+local ButtonLabel = Instance.new("TextLabel")
+ButtonLabel.Size = UDim2.new(1, 0, 0, 22)
+ButtonLabel.Position = UDim2.new(0, 0, 0, 75)
+ButtonLabel.BackgroundTransparency = 1
+ButtonLabel.Text = "Mouse Button"
+ButtonLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
+ButtonLabel.Font = Enum.Font.GothamBold
+ButtonLabel.TextSize = 15
+ButtonLabel.TextXAlignment = Enum.TextXAlignment.Left
+ButtonLabel.Parent = Content
+
+local LeftBtn = Instance.new("TextButton")
+LeftBtn.Size = UDim2.new(0.45, 0, 0, 34)
+LeftBtn.Position = UDim2.new(0, 0, 0, 100)
+LeftBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
+LeftBtn.Text = "Left"
+LeftBtn.TextColor3 = Color3.new(1,1,1)
+LeftBtn.Font = Enum.Font.GothamBold
+LeftBtn.TextSize = 14
+LeftBtn.Parent = Content
+Instance.new("UICorner", LeftBtn).CornerRadius = UDim.new(0, 6)
+
+local RightBtn = Instance.new("TextButton")
+RightBtn.Size = UDim2.new(0.45, 0, 0, 34)
+RightBtn.Position = UDim2.new(0.52, 0, 0, 100)
+RightBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+RightBtn.Text = "Right"
+RightBtn.TextColor3 = Color3.new(1,1,1)
+RightBtn.Font = Enum.Font.GothamBold
+RightBtn.TextSize = 14
+RightBtn.Parent = Content
+Instance.new("UICorner", RightBtn).CornerRadius = UDim.new(0, 6)
+
+-- Cursor Position
+local PosLabel = Instance.new("TextLabel")
+PosLabel.Size = UDim2.new(1, 0, 0, 22)
+PosLabel.Position = UDim2.new(0, 0, 0, 150)
+PosLabel.BackgroundTransparency = 1
+PosLabel.Text = "Cursor Position"
+PosLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
+PosLabel.Font = Enum.Font.GothamBold
+PosLabel.TextSize = 15
+PosLabel.TextXAlignment = Enum.TextXAlignment.Left
+PosLabel.Parent = Content
+
+local CurrentBtn = Instance.new("TextButton")
+CurrentBtn.Size = UDim2.new(0.45, 0, 0, 34)
+CurrentBtn.Position = UDim2.new(0, 0, 0, 175)
+CurrentBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
+CurrentBtn.Text = "Current Location"
+CurrentBtn.TextColor3 = Color3.new(1,1,1)
+CurrentBtn.Font = Enum.Font.GothamBold
+CurrentBtn.TextSize = 13
+CurrentBtn.Parent = Content
+Instance.new("UICorner", CurrentBtn).CornerRadius = UDim.new(0, 6)
+
+local PickedBtn = Instance.new("TextButton")
+PickedBtn.Size = UDim2.new(0.45, 0, 0, 34)
+PickedBtn.Position = UDim2.new(0.52, 0, 0, 175)
+PickedBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+PickedBtn.Text = "Picked Location"
+PickedBtn.TextColor3 = Color3.new(1,1,1)
+PickedBtn.Font = Enum.Font.GothamBold
+PickedBtn.TextSize = 13
+PickedBtn.Parent = Content
+Instance.new("UICorner", PickedBtn).CornerRadius = UDim.new(0, 6)
+
+-- Pick Location Button
+local PickLocBtn = Instance.new("TextButton")
+PickLocBtn.Size = UDim2.new(0.95, 0, 0, 36)
+PickLocBtn.Position = UDim2.new(0.025, 0, 0, 220)
+PickLocBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+PickLocBtn.Text = "PICK LOCATION"
+PickLocBtn.TextColor3 = Color3.new(1,1,1)
+PickLocBtn.Font = Enum.Font.GothamBold
+PickLocBtn.TextSize = 14
+PickLocBtn.Parent = Content
+Instance.new("UICorner", PickLocBtn).CornerRadius = UDim.new(0, 6)
+
+local CoordLabel = Instance.new("TextLabel")
+CoordLabel.Size = UDim2.new(1, 0, 0, 20)
+CoordLabel.Position = UDim2.new(0, 0, 0, 260)
+CoordLabel.BackgroundTransparency = 1
+CoordLabel.Text = "X: 0   Y: 0"
+CoordLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+CoordLabel.Font = Enum.Font.Gotham
+CoordLabel.TextSize = 13
+CoordLabel.Parent = Content
+
+-- Start Button
+local StartBtn = Instance.new("TextButton")
+StartBtn.Size = UDim2.new(0.95, 0, 0, 46)
+StartBtn.Position = UDim2.new(0.025, 0, 0, 295)
+StartBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
+StartBtn.Text = "START"
+StartBtn.TextColor3 = Color3.new(1,1,1)
+StartBtn.Font = Enum.Font.GothamBold
+StartBtn.TextSize = 18
+StartBtn.Parent = Content
+Instance.new("UICorner", StartBtn).CornerRadius = UDim.new(0, 8)
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, 0, 0, 22)
+StatusLabel.Position = UDim2.new(0, 0, 0, 350)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Status: Stopped"
+StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+StatusLabel.Font = Enum.Font.GothamBold
+StatusLabel.TextSize = 14
+StatusLabel.Parent = Content
+
+local HotkeyLabel = Instance.new("TextLabel")
+HotkeyLabel.Size = UDim2.new(1, 0, 0, 20)
+HotkeyLabel.Position = UDim2.new(0, 0, 0, 375)
+HotkeyLabel.BackgroundTransparency = 1
+HotkeyLabel.Text = "Hotkey: Q"
+HotkeyLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+HotkeyLabel.Font = Enum.Font.Gotham
+HotkeyLabel.TextSize = 13
+HotkeyLabel.Parent = Content
+
+-- Logic
+local function updateInterval()
+    settings.Interval = math.clamp(tonumber(SecBox.Text) or 0, 0, 59)
+    settings.Milliseconds = math.clamp(tonumber(MsBox.Text) or 0, 0, 999)
+end
+
+SecBox.FocusLost:Connect(updateInterval)
+MsBox.FocusLost:Connect(updateInterval)
+
+LeftBtn.MouseButton1Click:Connect(function()
+    settings.MouseButton = "Left"
+    LeftBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
+    RightBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+end)
+
+RightBtn.MouseButton1Click:Connect(function()
+    settings.MouseButton = "Right"
+    RightBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
+    LeftBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+end)
+
+CurrentBtn.MouseButton1Click:Connect(function()
+    settings.UseCurrentLocation = true
+    CurrentBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
+    PickedBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+end)
+
+PickedBtn.MouseButton1Click:Connect(function()
+    settings.UseCurrentLocation = false
+    PickedBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
+    CurrentBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+end)
+
+PickLocBtn.MouseButton1Click:Connect(function()
+    settings.WaitingForPick = true
+    PickLocBtn.Text = "Click anywhere..."
+    PickLocBtn.BackgroundColor3 = Color3.fromRGB(180, 80, 0)
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if settings.WaitingForPick and input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local pos = UserInputService:GetMouseLocation()
+        settings.PickedX = pos.X
+        settings.PickedY = pos.Y
+        settings.WaitingForPick = false
+        CoordLabel.Text = "X: " .. math.floor(pos.X) .. "   Y: " .. math.floor(pos.Y)
+        PickLocBtn.Text = "PICK LOCATION"
+        PickLocBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+    end
+
+    if not processed and input.KeyCode == settings.Hotkey then
+        settings.Enabled = not settings.Enabled
+        if settings.Enabled then
+            StartBtn.Text = "STOP"
+            StartBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+            StatusLabel.Text = "Status: Running"
+            StatusLabel.TextColor3 = Color3.fromRGB(0, 220, 100)
+        else
+            StartBtn.Text = "START"
+            StartBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
+            StatusLabel.Text = "Status: Stopped"
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+            RedCursor.Visible = false
+        end
+    end
+end)
+
+StartBtn.MouseButton1Click:Connect(function()
+    settings.Enabled = not settings.Enabled
+    if settings.Enabled then
+        StartBtn.Text = "STOP"
+        StartBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+        StatusLabel.Text = "Status: Running"
+        StatusLabel.TextColor3 = Color3.fromRGB(0, 220, 100)
+    else
+        StartBtn.Text = "START"
+        StartBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
+        StatusLabel.Text = "Status: Stopped"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+        RedCursor.Visible = false
+    end
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+    RedCursor:Destroy()
+end)
+
+print("SösikExclusiveAutoclicker locked n loaded")
