@@ -1,0 +1,351 @@
+--  Sösik's YasinWork Auto
+
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local LocalPlayer = Players.LocalPlayer
+
+local function getSafeUiParent()
+    if gethui then
+        local success, result = pcall(gethui)
+        if success and result then return result end
+    end
+    if syn and syn.protect_gui then
+        pcall(syn.protect_gui, CoreGui)
+        return CoreGui
+    end
+    local safeCore = CoreGui:FindFirstChild("RobloxGui") or CoreGui
+    if safeCore then return safeCore end
+    return LocalPlayer:WaitForChild("PlayerGui", 5)
+end
+
+local targetParent = getSafeUiParent()
+
+if targetParent and targetParent:FindFirstChild("PyramidAutofarmGUI") then
+    targetParent.PyramidAutofarmGUI:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PyramidAutofarmGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.DisplayOrder = 999
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.IgnoreGuiInset = true
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 280, 0, 190)
+Frame.Position = UDim2.new(0.1, 0, 0.3, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.ZIndex = 10
+Frame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = Frame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -35, 0, 35)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Sösik's YasinWork Auto"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 15
+Title.Font = Enum.Font.SourceSansBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.ZIndex = 11
+Title.Parent = Frame
+
+local UnloadBtn = Instance.new("TextButton")
+UnloadBtn.Size = UDim2.new(0, 25, 0, 25)
+UnloadBtn.Position = UDim2.new(1, -30, 0, 5)
+UnloadBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+UnloadBtn.Text = "X"
+UnloadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+UnloadBtn.TextSize = 14
+UnloadBtn.Font = Enum.Font.SourceSansBold
+UnloadBtn.ZIndex = 12
+UnloadBtn.Parent = Frame
+
+local UnloadCorner = Instance.new("UICorner")
+UnloadCorner.CornerRadius = UDim.new(0, 5)
+UnloadCorner.Parent = UnloadBtn
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, 0, 0, 25)
+StatusLabel.Position = UDim2.new(0, 0, 0, 35)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Status: Idle"
+StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+StatusLabel.TextSize = 13
+StatusLabel.Font = Enum.Font.SourceSans
+StatusLabel.ZIndex = 11
+StatusLabel.Parent = Frame
+
+local BuildBtn = Instance.new("TextButton")
+BuildBtn.Size = UDim2.new(0.85, 0, 0, 35)
+BuildBtn.Position = UDim2.new(0.075, 0, 0, 68)
+BuildBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+BuildBtn.Text = "YasinWork: OFF"
+BuildBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+BuildBtn.TextSize = 13
+BuildBtn.Font = Enum.Font.SourceSansBold
+BuildBtn.ZIndex = 11
+BuildBtn.Parent = Frame
+
+local BtnCorner1 = Instance.new("UICorner")
+BtnCorner1.CornerRadius = UDim.new(0, 6)
+BtnCorner1.Parent = BuildBtn
+
+local SpamEBtn = Instance.new("TextButton")
+SpamEBtn.Size = UDim2.new(0.85, 0, 0, 35)
+SpamEBtn.Position = UDim2.new(0.075, 0, 0, 115)
+SpamEBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+SpamEBtn.Text = "E: OFF"
+SpamEBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpamEBtn.TextSize = 13
+SpamEBtn.Font = Enum.Font.SourceSansBold
+SpamEBtn.ZIndex = 11
+SpamEBtn.Parent = Frame
+
+local BtnCorner2 = Instance.new("UICorner")
+BtnCorner2.CornerRadius = UDim.new(0, 6)
+BtnCorner2.Parent = SpamEBtn
+
+ScreenGui.Parent = targetParent
+
+local BuildEnabled = false
+local SpamEEnabled = false
+local ScriptRunning = true
+local TELEPORT_DELAY = 0.05
+local PARTS_REFRESH_INTERVAL = 2.0
+
+task.spawn(function()
+    while ScriptRunning do
+        if SpamEEnabled then
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+            task.wait(0.001)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+            task.wait(0.002)
+        else
+            task.wait(0.08)
+        end
+    end
+end)
+
+local capacityLabel = nil
+local function getCapacity()
+    if not capacityLabel or not capacityLabel.Parent then
+        capacityLabel = nil
+        for _, gui in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
+            if gui:IsA("TextLabel") and string.find(gui.Text, "Capacity:") then
+                capacityLabel = gui
+                break
+            end
+        end
+    end
+    if capacityLabel then
+        local current, max = string.match(capacityLabel.Text, "(%d+)/(%d+)")
+        if current and max then
+            return tonumber(current), tonumber(max)
+        end
+    end
+    return 0, 36
+end
+
+local function getNilFolderOrParts(layerName)
+    local results = {}
+    if getnilinstances then
+        pcall(function()
+            for _, inst in ipairs(getnilinstances()) do
+                if inst.Name == layerName or (inst.Parent and inst.Parent.Name == layerName) then
+                    if inst:IsA("BasePart") then
+                        table.insert(results, inst)
+                    elseif inst:IsA("Folder") or inst:IsA("Model") then
+                        for _, child in ipairs(inst:GetChildren()) do
+                            if child:IsA("BasePart") then
+                                table.insert(results, child)
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
+    return results
+end
+
+local function goToQuarry()
+    local quarry = workspace:FindFirstChild("Quarry")
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp and quarry then
+        local targetCFrame
+        if quarry:IsA("Model") and quarry.PrimaryPart then
+            targetCFrame = quarry:GetPrimaryPartCFrame()
+        elseif quarry:IsA("BasePart") then
+            targetCFrame = quarry.CFrame
+        else
+            local anyPart = quarry:FindFirstChildWhichIsA("BasePart", true)
+            if anyPart then
+                targetCFrame = anyPart.CFrame
+            end
+        end
+        if targetCFrame then
+            hrp.CFrame = targetCFrame * CFrame.new(0, 3, 0)
+        end
+    end
+end
+
+local function getCurrentLayerUnfilledParts()
+    local pyramidCover = workspace:FindFirstChild("ClientPyramidCover")
+    
+    -- Method 1: Highest non-empty Layer folder
+    if pyramidCover then
+        for layerNum = 99, 1, -1 do
+            local layerName = "Layer" .. tostring(layerNum)
+            local folder = pyramidCover:FindFirstChild(layerName)
+            if folder then
+                local parts = {}
+                for _, child in ipairs(folder:GetChildren()) do
+                    if child:IsA("BasePart") then
+                        table.insert(parts, child)
+                    end
+                end
+                if #parts > 0 then
+                    table.sort(parts, function(a, b) return a.Name < b.Name end)
+                    return parts, layerNum
+                end
+            end
+        end
+    end
+
+    if getnilinstances then
+        for layerNum = 99, 1, -1 do
+            local layerName = "Layer" .. tostring(layerNum)
+            local parts = getNilFolderOrParts(layerName)
+            if #parts > 0 then
+                table.sort(parts, function(a, b) return a.Name < b.Name end)
+                return parts, layerNum
+            end
+        end
+    end
+
+    if pyramidCover then
+        local parts = {}
+        for _, child in ipairs(pyramidCover:GetDescendants()) do
+            if child:IsA("BasePart") then
+                table.insert(parts, child)
+            end
+        end
+        if #parts > 0 then
+            table.sort(parts, function(a, b) return a.Name < b.Name end)
+            return parts, 0
+        end
+    end
+
+    return {}, 0
+end
+
+-- Cached parts
+local cachedParts = {}
+local cachedLayer = 0
+local lastPartsRefresh = 0
+
+local function getCachedUnfilledParts()
+    if tick() - lastPartsRefresh > PARTS_REFRESH_INTERVAL or #cachedParts == 0 then
+        cachedParts, cachedLayer = getCurrentLayerUnfilledParts()
+        lastPartsRefresh = tick()
+    end
+    return cachedParts, cachedLayer
+end
+
+local function runPyramidBuild()
+    task.spawn(function()
+        while BuildEnabled and ScriptRunning do
+            local current, max = getCapacity()
+
+            if current == 0 then
+                StatusLabel.Text = "Status: Collecting at Quarry..."
+                goToQuarry()
+
+                while BuildEnabled and ScriptRunning do
+                    current, max = getCapacity()
+                    StatusLabel.Text = "Status: Collecting... (" .. current .. "/" .. max .. ")"
+                    if current >= max then break end
+                    task.wait(0.3)
+                end
+            else
+                local parts, layerNum = getCachedUnfilledParts()
+
+                if #parts > 0 then
+                    local layerText = layerNum > 0 and ("Layer " .. layerNum) or "Current"
+                    StatusLabel.Text = "Status: Building " .. layerText .. "..."
+
+                    for i, part in ipairs(parts) do
+                        if not BuildEnabled or not ScriptRunning then break end
+
+                        local cur = getCapacity()
+                        if cur == 0 then
+                            StatusLabel.Text = "Status: Out of blocks"
+                            break
+                        end
+
+                        local char = LocalPlayer.Character
+                        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                        if hrp and part and part.Parent then
+                            hrp.CFrame = part.CFrame * CFrame.new(0, 2.8, 0)
+                            task.wait(TELEPORT_DELAY)
+                        end
+
+                        if i % 10 == 0 then
+                            StatusLabel.Text = "Status: " .. layerText .. " (" .. i .. "/" .. #parts .. ")"
+                        end
+                    end
+                else
+                    StatusLabel.Text = "Status: No spots found - waiting..."
+                    task.wait(1.5)
+                end
+            end
+
+            task.wait(0.2)
+        end
+
+        if ScriptRunning then
+            StatusLabel.Text = "Status: Stopped"
+        end
+    end)
+end
+
+BuildBtn.MouseButton1Click:Connect(function()
+    BuildEnabled = not BuildEnabled
+    if BuildEnabled then
+        BuildBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 80)
+        BuildBtn.Text = "YasinWork: ON"
+        runPyramidBuild()
+    else
+        BuildBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        BuildBtn.Text = "YasinWork: OFF"
+        StatusLabel.Text = "Status: Stopped"
+    end
+end)
+
+SpamEBtn.MouseButton1Click:Connect(function()
+    SpamEEnabled = not SpamEEnabled
+    if SpamEEnabled then
+        SpamEBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 80)
+        SpamEBtn.Text = "E: ON"
+    else
+        SpamEBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        SpamEBtn.Text = "E: OFF"
+    end
+end)
+
+UnloadBtn.MouseButton1Click:Connect(function()
+    ScriptRunning = false
+    BuildEnabled = false
+    SpamEEnabled = false
+    ScreenGui:Destroy()
+end)
