@@ -1,0 +1,92 @@
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- Change this to your own key
+local CORRECT_KEY = "dada"
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "KeySystem"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 320, 0, 190)
+frame.Position = UDim2.new(0.5, -160, 0.5, -95)
+frame.BackgroundColor3 = Color3.fromRGB(24, 25, 35)
+frame.Parent = gui
+
+Instance.new("UICorner", frame).CornerRadius =
+    UDim.new(0, 12)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 45)
+title.BackgroundTransparency = 1
+title.Text = "Access Key System"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 21
+title.Font = Enum.Font.GothamBold
+title.Parent = frame
+
+local input = Instance.new("TextBox")
+input.Size = UDim2.new(1, -40, 0, 40)
+input.Position = UDim2.new(0, 20, 0, 55)
+input.BackgroundColor3 = Color3.fromRGB(39, 41, 55)
+input.TextColor3 = Color3.fromRGB(255, 255, 255)
+input.PlaceholderText = "Enter your key..."
+input.PlaceholderColor3 = Color3.fromRGB(155, 155, 170)
+input.Text = ""
+input.TextSize = 15
+input.Font = Enum.Font.Gotham
+input.ClearTextOnFocus = false
+input.Parent = frame
+
+Instance.new("UICorner", input).CornerRadius =
+    UDim.new(0, 7)
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(1, -40, 0, 38)
+button.Position = UDim2.new(0, 20, 0, 105)
+button.BackgroundColor3 = Color3.fromRGB(124, 92, 230)
+button.Text = "Verify Key"
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextSize = 15
+button.Font = Enum.Font.GothamBold
+button.Parent = frame
+
+Instance.new("UICorner", button).CornerRadius =
+    UDim.new(0, 7)
+
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -30, 0, 25)
+status.Position = UDim2.new(0, 15, 0, 150)
+status.BackgroundTransparency = 1
+status.Text = ""
+status.TextColor3 = Color3.fromRGB(255, 100, 100)
+status.TextSize = 13
+status.Font = Enum.Font.Gotham
+status.Parent = frame
+
+local function verifyKey()
+    if input.Text == CORRECT_KEY then
+        status.Text = "Correct key! Access granted."
+        status.TextColor3 = Color3.fromRGB(100, 255, 150)
+
+        task.wait(0.6)
+        gui:Destroy()
+
+        -- Put your own allowed code here.
+        print("Key accepted!")
+    else
+        status.Text = "Incorrect key. Try again."
+        status.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+end
+
+button.Activated:Connect(verifyKey)
+
+input.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        verifyKey()
+    end
+end)
