@@ -1,6 +1,6 @@
 --[[
     D4ce × Murder Mystery 2
-    Red Aesthetic Edition (v2)
+    Red Aesthetic Edition (Final)
 ]]
 
 local Players          = game:GetService("Players")
@@ -26,16 +26,19 @@ local Config = {
     AutoMurder = false,
     AutoCoin = false,
     AutoSheriffKill = false,
+    AutoGrabGun = false,
 
     WalkSpeed = 16,
     JumpPower = 50,
-    SpeedEnabled = true, -- Default to true so sliders work immediately
+    SpeedEnabled = true,
     Fly = false,
     FlySpeed = 50,
     
-    -- New Configs for Auto Features
+    -- Auto Feature Configs
     SheriffRange = 10,
     SheriffCooldown = 0.3,
+    MurderCooldown = 0.35,
+    GunGrabRange = 25,
 }
 
 local flyBV, flyBG
@@ -46,6 +49,7 @@ local lastStab, lastCoin, lastSheriffShot = 0, 0, 0
 local function getRole(plr)
     local char = plr.Character
     if not char then return "Unknown" end
+    
     -- Check Backpack and Character for weapons
     local hasWeapon = function(name)
         return (char:FindFirstChild(name) ~= nil) or (plr.Backpack and plr.Backpack:FindFirstChild(name) ~= nil)
@@ -151,7 +155,7 @@ end
 -- Only targets Innocents and Sheriffs. Ignores other Murderers.
 local function autoMurder()
     if not Config.AutoMurder or getRole(player) ~= "Murderer" then return end
-    if tick() - lastStab < 0.35 then return end
+    if tick() - lastStab < Config.MurderCooldown then return end
 
     local myHRP = getHRP()
     if not myHRP then return end
@@ -160,7 +164,6 @@ local function autoMurder()
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= player and isAlive(plr) then
             local targetRole = getRole(plr)
-            -- SKIP OTHER MURDERERS
             if targetRole == "Murderer" then continue end
             
             local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
@@ -175,15 +178,66 @@ local function autoMurder()
     end
 
     if closest then
-        local behind = closest.CFrame * CFrame.new(0, 0, 3.1)
-        myHRP.CFrame = CFrame.new(behind.Position, closest.Position)
-        task.wait(0.04)
+        -- Calculate position 3 studs behind the target's current orientation
+        local targetCF = closest.CFrame
+        local behindPos = targetCF:Point(0, 0, 3.1)
+        
+        -- Teleport with a CFrame that looks at the target
+        myHRP.CFrame = CFrame.new(behindPos, targetCF.Position)
+        
+        -- Wait for physics to settle
+        task.wait(0.05)
+        
+        -- Send Click
         pcall(function()
             VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-            task.wait(0.07)
+            task.wait(0.08)
             VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
         end)
         lastStab = tick()
+    end
+end
+
+-- SHERIFF LOGIC
+-- 300ms cooldown, 10 stud range check
+local function autoSheriffKill()
+    if not Config.AutoSheriffKill or getRole(player) ~= "Sheriff" then return end
+    if tick() - lastSheriffShot < Config.SheriffCooldown then return end
+
+    local myHRP = getHRP()
+    if not myHRP then return end
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player and isAlive(plr) and getRole(plr) == "Murderer" then
+            local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+            local head = plr.Character and plr.Character:FindFirstChild("Head")
+            
+            if hrp then
+                local dist = (hrp.Position - myHRP.Position).Magnitude
+                
+                -- CHECK RANGE (10 studs)
+                if dist <= Config.SheriffRange then
+                    local targetCF = hrp.CFrame
+                    -- Position 4 studs behind the murderer
+                    local behindPos = targetCF:Point(0, 0, 4)
+                    
+                    -- Teleport and aim at head
+                    myHRP.CFrame = CFrame.new(behindPos, (head or hrp).Position)
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, (head or hrp).Position)
+                    
+                    -- Wait for physics to settle
+                    task.wait(0.05)
+                    
+                    pcall(function()
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+                        task.wait(0.06)
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                    end)
+                    lastSheriffShot = tick()
+                    break
+                end
+            end
+        end
     end
 end
 
@@ -212,39 +266,37 @@ local function autoCoin()
     end
 end
 
--- SHERIFF LOGIC
--- 300ms cooldown, 10 stud range check
-local function autoSheriffKill()
-    if not Config.AutoSheriffKill or getRole(player) ~= "Sheriff" then return end
-    if tick() - lastSheriffShot < Config.SheriffCooldown then return end
-
+-- GUN GRAB LOGIC
+local function autoGrabGun()
+    if not Config.AutoGrabGun then return end
+    if getRole(player) == "Murderer" then return end -- Usually only useful for Innocent/Sheriff
+    
     local myHRP = getHRP()
     if not myHRP then return end
+    
+    -- Check if already holding a gun
+    if getRole(player) == "Sheriff" then return end
 
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= player and isAlive(plr) and getRole(plr) == "Murderer" then
-            local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-            local head = plr.Character and plr.Character:FindFirstChild("Head")
-            
-            if hrp then
-                local dist = (hrp.Position - myHRP.Position).Magnitude
-                
-                -- CHECK RANGE (10 studs)
-                if dist <= Config.SheriffRange then
-                    -- Aim behind the murderer
-                    myHRP.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 0, 4), hrp.Position)
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, (head or hrp).Position)
-                    task.wait(0.04)
-                    pcall(function()
-                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-                        task.wait(0.06)
-                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-                    end)
-                    lastSheriffShot = tick()
-                    break
+    local closestGun, closestDist = nil, math.huge
+    -- Scan workspace for dropped guns
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local nameLower = obj.Name:lower()
+            -- Common gun names in MM2
+            if nameLower:find("gun") or nameLower:find("sheriff") or nameLower:find("deagle") or nameLower:find("ak") or nameLower:find("m4") or nameLower:find("rifle") then
+                local dist = (obj.Position - myHRP.Position).Magnitude
+                -- 25 stud range
+                if dist < closestDist and dist < Config.GunGrabRange then
+                    closestDist = dist
+                    closestGun = obj
                 end
             end
         end
+    end
+
+    if closestGun then
+        -- Teleport to the gun
+        myHRP.CFrame = CFrame.new(closestGun.Position + Vector3.new(0, 3, 0))
     end
 end
 
@@ -254,6 +306,7 @@ RunService.Heartbeat:Connect(function()
     autoMurder()
     autoCoin()
     autoSheriffKill()
+    autoGrabGun()
 
     -- Keep stats applied in case game resets them
     if Config.SpeedEnabled then
@@ -291,9 +344,8 @@ RunService.RenderStepped:Connect(function()
         if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.yAxis end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir -= Vector3.yAxis end
-        if dir.Magnitude > 0 then dir = dir.Unit end
-        flyBV.Velocity = dir * Config.FlySpeed
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir = dir.Unit end
+                flyBV.Velocity = dir * Config.FlySpeed
         flyBG.CFrame = cam.CFrame
     end
 end)
@@ -488,7 +540,7 @@ local function makeToggle(parent, text, y, default, callback)
     local track = Instance.new("Frame")
     track.Size = UDim2.fromOffset(42, 22)
     track.Position = UDim2.new(1, -54, 0.5, -11)
-    track.BackgroundColor3 = state and Color3.fromRGB(220, 40, 60) or Color3.fromRGB(50, 30, 35)
+    track.BackgroundColor3 = state and Color3.fromRGB(220, 40,        60) or Color3.fromRGB(50, 30, 35)
     track.Parent = btn
     Instance.new("UICorner", track).CornerRadius = UDim.new(0, 11)
 
@@ -611,12 +663,13 @@ farmTab.Parent = content
 
 local farmCard = glass(farmTab, UDim2.new(1, -16, 0, 160), UDim2.new(0, 8, 0, 8))
 makeToggle(farmCard, "Auto Collect Coins", 25, false, function(v) Config.AutoCoin = v end)
+makeToggle(farmCard, "Auto Grab Gun", 75, false, function(v) Config.AutoGrabGun = v end)
 
 local farmInfo = Instance.new("TextLabel")
 farmInfo.Size = UDim2.new(1, -30, 0, 50)
 farmInfo.Position = UDim2.new(0, 16, 0, 90)
 farmInfo.BackgroundTransparency = 1
-farmInfo.Text = "Works on any role.\nYou can farm coins even as Murderer."
+farmInfo.Text = ""
 farmInfo.TextColor3 = Color3.fromRGB(200, 140, 150)
 farmInfo.Font = Enum.Font.Gotham
 farmInfo.TextSize = 13
@@ -640,10 +693,10 @@ roleInfo.Position = UDim2.new(0, 16, 0, 135)
 roleInfo.BackgroundTransparency = 1
 roleInfo.Text = "Murderer: Targets Innocents/Sheriffs only\nSheriff: 300ms cooldown, 10 stud range"
 roleInfo.TextColor3 = Color3.fromRGB(200, 140, 150)
-info.Font = Enum.Font.Gotham
-info.TextSize = 13
-info.TextXAlignment = Enum.TextXAlignment.Left
-info.Parent = roleCard
+roleInfo.Font = Enum.Font.Gotham
+roleInfo.TextSize = 13
+roleInfo.TextXAlignment = Enum.TextXAlignment.Left
+roleInfo.Parent = roleCard
 
 -- Misc Tab
 local miscTab = Instance.new("Frame")
@@ -717,32 +770,74 @@ local miniTitle = Instance.new("TextLabel")
 miniTitle.Size = UDim2.new(1, -45, 1, 0)
 miniTitle.Position = UDim2.new(0, 14, 0, 0)
 miniTitle.BackgroundTransparency = 1
-miniTitle.Text = "D4ce" 
-miniTitle.TextColor3 = Color3.fromRGB(255, 70, 90) 
-miniTitle.Font = Enum.Font.GothamBlack 
-miniTitle.TextSize = 18 
-miniTitle.TextXAlignment = Enum.TextXAlignment.Left 
+miniTitle.Text = "D4ce"
+miniTitle.TextColor3 = Color3.fromRGB(255, 70, 90)
+miniTitle.Font = Enum.Font.GothamBlack
+miniTitle.TextSize = 18
+miniTitle.TextXAlignment = Enum.TextXAlignment.Left
 miniTitle.Parent = miniBar
 
-local miniDots = Instance.new("TextButton") 
-miniDots.Size = UDim2.new(0, 32, 0, 16) 
-miniDots.Position = UDim2.new(1, -38, 0.5, -8) 
-miniDots.BackgroundTransparency = 1 
-miniDots.Text = "" 
-miniDots.Parent = miniBar 
-for i = 0, 2 do local d = Instance.new("Frame") 
-d.Size = UDim2.new(0, 6, 0, 6) 
-d.Position = UDim2.new(0, i * 10, 0, 5) 
-d.BackgroundColor3 = Color3.fromRGB(255, 60, 80) 
-d.BorderSizePixel = 0 
-d.Parent = miniDots 
-Instance.new("UICorner", d).CornerRadius = UDim.new(1, 0) end
+local miniDots = Instance.new("TextButton")
+miniDots.Size = UDim2.new(0, 32, 0, 16)
+miniDots.Position = UDim2.new(1, -38, 0.5, -8)
+miniDots.BackgroundTransparency = 1
+miniDots.Text = ""
+miniDots.Parent = miniBar
+for i = 0, 2 do
+    local d = Instance.new("Frame")
+    d.Size = UDim2.new(0, 6, 0, 6)
+    d.Position = UDim2.new(0, i * 10, 0, 5)
+    d.BackgroundColor3 = Color3.fromRGB(255, 60, 80)
+    d.BorderSizePixel = 0
+    d.Parent = miniDots
+    Instance.new("UICorner", d).CornerRadius = UDim.new(1, 0)
+end
 
-local function toggleMinimize() minimized = not minimized 
-    main.Visible = not minimized 
-    miniBar.Visible = minimized end 
-    dotsFrame.MouseButton1Click:Connect(toggleMinimize) 
-    miniDots.MouseButton1Click:Connect(toggleMinimize)
+local function toggleMinimize()
+    minimized = not minimized
+    main.Visible = not minimized
+    miniBar.Visible = minimized
+end
+dotsFrame.MouseButton1Click:Connect(toggleMinimize)
+miniDots.MouseButton1Click:Connect(toggleMinimize)
 
-UserInputService.InputBegan:Connect(function(input, gp) if gp then return end 
-if input.KeyCode == Enum.KeyCode.RightShift then toggleMinimize() end end)
+-- Dragging
+local function makeDraggable(frame, handle)
+    local dragging, dragStart, startPos
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+        end
+    end)
+    handle.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local d = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        end
+    end)
+end
+makeDraggable(main, topBar)
+makeDraggable(miniBar, miniBar)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        toggleMinimize()
+    end
+end)
+
+-- Apply stats on spawn and update fly if active
+player.CharacterAdded:Connect(function(char)
+    task.wait(1)
+    if Config.SpeedEnabled then
+        applyStats()
+    end
+    if Config.Fly then
+        setFly(true)
+    end
+end)
